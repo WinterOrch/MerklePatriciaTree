@@ -5,10 +5,11 @@ import java.util.Locale;
 public class HexConver {
     private final static char[] mChars = "0123456789ABCDEF".toCharArray();
     private final static String mHexStr = "0123456789ABCDEF";
+
     /**
-     * 检查16进制字符串是否有效
-     * @param sHex String 16进制字符串
-     * @return boolean
+     * Check If A Hex String Is Valid
+     * @param sHex         Hex String
+     * @return             Is Valid Or Not
      */
     public static boolean checkHexStr(String sHex){
         String sTmp = sHex.trim().replace(" ", "").toUpperCase(Locale.US);

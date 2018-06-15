@@ -4,6 +4,12 @@ import java.util.Objects;
 
 public class RLP {
 
+    /**
+     * RLP Encoding Process For Outside Use
+     * @param input Two-dimension Byte Array As A Complete Node;
+     * @return      One-dimension Byte Array As Its Encoding Result
+     * created in 22:45 2018/6/15
+     */
     public static byte[] rlpEncoding(byte[][] input) {
         byte[] output;
         byte[] temp = new byte[0];
@@ -29,6 +35,12 @@ public class RLP {
         return output;
     }
 
+    /**
+     * RLP Encoding Process For Outside Use
+     * @param input One-dimension Byte Array As Encoding Result
+     * @return      Two-dimension Byte Array As Node's Content
+     * created in 22:45 2018/6/15
+     */
     public static byte[][] rlpDecoding(byte[] input) {
         byte[][] output;
         int prefixLength;
