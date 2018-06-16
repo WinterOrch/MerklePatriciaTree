@@ -104,7 +104,16 @@ public class Data {
         }
 
         try {
-            // Use the db in here....
+            try (WriteBatch batch = Data.createWriteBatch()) {
+                batch.delete(bytes("Denver"));
+                batch.put(bytes("Tampa"), bytes("green"));
+                batch.put(bytes("London"), bytes("red"));
+
+                Data.write(batch);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // Make sure you close the batch to avoid resource leaks.
         } finally {
             // Make sure you close the db to shutdown the
             // database and avoid resource leaks.
