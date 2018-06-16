@@ -78,7 +78,7 @@ public class Data {
     }
 
     /**
-     * Ussage:
+     * Usage:
      DBIterator iterator = Data.iterator();
      try {
      for(iterator.seekToFirst(); iterator.hasNext(); iterator.next()) {
