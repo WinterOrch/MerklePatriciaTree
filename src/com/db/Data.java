@@ -7,6 +7,7 @@ import java.io.*;
 import java.util.Objects;
 
 public class Data {
+
     public static void main(String[] args) {
         Options options = new Options();
         options.createIfMissing(true);
