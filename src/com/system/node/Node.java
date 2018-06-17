@@ -65,52 +65,6 @@ public class Node {
 
     /**
      * Usage:
-     *      Node.setNibbles(leafNode, keyEnd);
-     * Warning:
-     *      1.return 0 when the input node is neither an extension node nor a leaf node
-     * created in 21:11 2018/6/17
-     */
-    public static int setNibbles(byte[][] eNOrLN, String nibbles) {
-        if(eNOrLN.length == 3) {
-            eNOrLN[1] = nibbles.getBytes();
-            return 1;
-        }else {
-            return 0;
-        }
-    }
-
-    /**
-     * Usage:
-     *      Node.storeNode(leafNode);
-     * Warning:
-     *      1.have to initialize the data base first(and close after that)
-     * created in 21:11 2018/6/17
-     */
-    public static void storeNode(byte[][] node) {
-        byte[] rlpNode = RLP.rlpEncoding(node);
-        Data.put(Hash.getHash(rlpNode),rlpNode);
-    }
-
-    /**
-     * Usage:
-     *      Node.setPrefix(leafNode, Node.LEAF_NODE);
-     * Warning:
-     *      1.return 0 when the input node is neither an extension node nor a leaf node
-     * created in 21:11 2018/6/17
-     */
-    public static int setPrefix(byte[][] eNOrLN, int prefix) {
-        if(eNOrLN.length == 3) {
-            byte[] pre = new byte[1];
-            pre[0] = (byte)(prefix & 0xFF);
-            eNOrLN[0] = pre;
-            return 1;
-        }else {
-            return 0;
-        }
-    }
-
-    /**
-     * Usage:
      *      if(Node.isExtensionNode(node)) {
      *          //something to do with the extension node
      *      }
@@ -141,4 +95,90 @@ public class Node {
     public static boolean isBranchNode(byte[][] node) {
         return node.length == 17;
     }
+
+    /**
+     * Usage:
+     *      Node.setChild(extensionNode,branchNode);
+     * created in 21:11 2018/6/17
+     */
+    public static void setChild(byte[][] parent, byte[][] child) {
+        parent[2] = Hash.getHash(RLP.rlpEncoding(child));
+    }
+
+    /**
+     * Usage:
+     *      Node.setChild(branchNode,0xf,leafNode);
+     * created in 21:11 2018/6/17
+     */
+    public static void setChild(byte[][] parent, int index, byte[][] child) {
+        parent[index] = Hash.getHash(RLP.rlpEncoding(child));
+    }
+
+    /**
+     * Usage:
+     *      Node.setNibbles(leafNode, keyEnd);
+     * Warning:
+     *      1.return 0 when the input node is neither an extension node nor a leaf node
+     * created in 21:11 2018/6/17
+     */
+    public static int setNibbles(byte[][] eNOrLN, String nibbles) {
+        if(eNOrLN.length == 3) {
+            eNOrLN[1] = nibbles.getBytes();
+            return 1;
+        }else {
+            return 0;
+        }
+    }
+
+    /**
+     * Usage:
+     *      Node.setPrefix(leafNode, Node.LEAF_NODE);
+     * Warning:
+     *      1.return 0 when the input node is neither an extension node nor a leaf node
+     * created in 21:11 2018/6/17
+     */
+    public static int setPrefix(byte[][] eNOrLN, int prefix) {
+        if(eNOrLN.length == 3) {
+            byte[] pre = new byte[1];
+            pre[0] = (byte)(prefix & 0xFF);
+            eNOrLN[0] = pre;
+            return 1;
+        }else {
+            return 0;
+        }
+    }
+
+    /**
+     * Usage:
+     *      Node.setValue(branchNode);
+     * created in 21:11 2018/6/17
+     */
+    public static void setValue(byte[][] branchNode) {
+        byte[] value = new byte[0];
+
+        for(int i = 0; i < 16; i++) {
+            if(branchNode[i] != null) {
+                byte[] temp = new byte[value.length];
+                System.arraycopy(value,0,temp,0,value.length);
+                value = new byte[temp.length + branchNode[i].length];
+                System.arraycopy(temp,0,value,0,temp.length);
+                System.arraycopy(branchNode[i],0,value,temp.length,branchNode[i].length);
+            }
+        }
+
+        branchNode[16] = Hash.getHash(value);
+    }
+
+    /**
+     * Usage:
+     *      Node.storeNode(leafNode);
+     * Warning:
+     *      1.have to initialize the data base first(and close after that)
+     * created in 21:11 2018/6/17
+     */
+    public static void storeNode(byte[][] node) {
+        byte[] rlpNode = RLP.rlpEncoding(node);
+        Data.put(Hash.getHash(rlpNode),rlpNode);
+    }
+
 }
