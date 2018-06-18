@@ -1,58 +1,100 @@
 package com.system;
 
+import com.db.Data;
+import com.encoding.RLP;
+import com.system.node.Node;
+
+import java.io.IOException;
+import java.util.Objects;
+
 /**
  * Description
  * @author Yu.Mao
  * Created in 19:02 2018/6/17
- * Modified by
+ * Modified by Frankel.Y
  */
 public class Trie {
-    public static String trie_Find(byte[] hash, String nibbles) {
-        //TODO 数据库里利用hash查询
-        //TODO 对数据进行RLP解码
-        if (prefix == 0) {
-            nibbles = nibbles + hash.解码得到的字符串;
-            trie_Find(hash.getchild, nibbles);
+
+    private final static String mHexStr = "0123456789ABCDEF";
+
+    public static byte[][] searchForLeaf(byte[] headHash, String key) {
+        key = key.toUpperCase();
+        // Initialize Data Base
+        try {
+            Data.initialize();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        if (prefix == 1) {
-            nibbles = hash.nibbles + nibbles;
-            trie_Find(hash.getchild, nibbles);
+
+        // Get Root
+        byte[][] node = RLP.rlpDecoding(Data.get(headHash));
+        byte[][] position = null;
+        boolean find = true;
+        StringBuilder nibbles = new StringBuilder();
+
+        while(!Node.isLeafNode(Objects.requireNonNull(node))) {
+            if(Node.isExtensionNode(node)) {
+                nibbles.append(Node.getNibbles(node));
+                if(key.startsWith(nibbles.toString())) {
+                    if(key.equals(nibbles.toString())) {
+                        find = false;
+                        break;
+                    }else {
+                        position = node;
+                        node = Node.getExtensionChild(node);
+                    }
+                }else {
+                    // Situation 3 - Extension node needs to be split, position points to its parent
+                    find = false;
+                    break;
+                }
+            }else if(Node.isBranchNode(node)) {
+                if(key.equals(nibbles.toString())) {
+                    find = false;
+                    break;
+                }else {
+                    char temp = key.charAt(nibbles.length());
+                    int index = mHexStr.indexOf(temp);
+
+                    if(Node.getBranchChild(node,index) == null) {
+                        // Situation 1 - Branch exists, need to add leaf node
+                        position = node;
+                        break;
+                    }else {
+                        // Situation 2 - Get to 3 or 4
+                        nibbles.append(temp);
+                        position = node;
+                        node = Node.getBranchChild(node,index);
+                    }
+                }
+            }
         }
-        return nibbles;
-    }
 
-
-    public static byte[][] trie_FindFather(byte[][] s) {
-        if (prefix == 0){
-
+        // Close Data Base
+        try {
+            Data.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        if(prefix == 1){
-            if()
+
+        // Judge
+        if(find) {
+            if(Node.isLeafNode(node)) {
+                nibbles.append(Node.getNibbles(node));
+                if(key.equals(nibbles.toString())) {
+                    return node;
+                }else {
+                    // Situation 4 - Leaf node unmatched, need to split its key-end and add new extension and branch node. Position points to its parent.
+                    return null;
+                }
+            }else {
+                return null;
+            }
+        }else {
+            return null;
         }
-        if(prefix == 2){
-            if()
-        }
-    }
 
 
-    public static void trie_Update(byte[][] s) {
-        if (s != null) {
-            if (s.prefix == 0)//更新的是分支节点
-                s.nibble
-                trie_Update(s);
-            if (s.prefix == 1)
-
-                if （s.prefix == 2）
-            byte
-
-            byte sFather = trie_FindFather(s);
-            sFather.getchild = s;
-
-
-        }
-    }
-
-    public static void trie_Modify(byte){
 
     }
 
