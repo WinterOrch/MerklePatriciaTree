@@ -59,6 +59,7 @@ public class Trie {
                     if(Node.getBranchChild(node,index) == null) {
                         // Situation 1 - Branch exists, need to add leaf node
                         position = node;
+                        find = false;
                         break;
                     }else {
                         // Situation 2 - Get to 3 or 4
