@@ -236,9 +236,9 @@ public class Node {
         byte[] rlpNode;
         byte[] h;
 
-        if(isExtensionNode(node)){
+        if(isExtensionNode(node) && childHash != null){
             node[2] = childHash;
-        }else if(isBranchNode(node)) {
+        }else if(isBranchNode(node) && childHash != null && childHashOrigin != null) {
             int i = 0;
             boolean t = true;
             for(; i < 16; i++) {
@@ -251,6 +251,7 @@ public class Node {
                 throw new RuntimeException("Branch Node Cannot Find childHashOrigin");
             }else {
                 node[i] = childHash;
+                Node.setValue(node);
             }
         }
 
