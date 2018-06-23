@@ -1,7 +1,7 @@
 <component name="libraryTable">
   <library name="poi-3.6-20091214">
     <CLASSES>
-      <root url="jar://C:/Program Files/Java/externalJDK/poi-3.6-20091214.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../外部包/poi-3.6-20091214.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

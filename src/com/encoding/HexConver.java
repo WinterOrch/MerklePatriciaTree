@@ -162,4 +162,25 @@ public class HexConver {
         return result;
     }
 
+    public static int compare2String(String str1,String str2){
+        int count=0;
+        String str3 = str2.substring(0,str1.length());
+        for(int i = 0;i<str1.length();i++)
+            if(str1.charAt(i)!=str3.charAt(i)) {
+                count++;
+            }
+
+        return count;
+
+    }
+    public static void main(String[] args){
+        String s1 = "abcd";
+        String s2 = "acbex44";
+        int count;
+        count=compare2String(s1,s2);
+        System.out.println(count);
+    }
+
+
+
 }
