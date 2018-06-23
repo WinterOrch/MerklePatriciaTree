@@ -3,7 +3,9 @@ package com.db;
 import com.encoding.HexConver;
 import com.encoding.RLP;
 import com.system.Constants;
+import com.system.Trie;
 import com.system.node.Node;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -121,8 +123,7 @@ public class Data {
      * created in 13:37 2018/6/16
      */
     public static int[] survey() {
-        int[] result = new int[3];
-
+        int[] result = new int[4];
         DBIterator iterator = iterator();
         for(iterator.seekToFirst(); iterator.hasNext(); iterator.next()) {
             if(iterator.peekNext().getKey() == bytes("key")) {
@@ -133,9 +134,14 @@ public class Data {
                 result[1]++;
             }else if(Node.isExtensionNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
                 result[2]++;
-            }
+            }else
+                result[3]++;
         }
-
+        try {
+            close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return result;
     }
 
@@ -363,81 +369,85 @@ public class Data {
         int k = 1;
         DBIterator iterator = iterator();
         for(iterator.seekToFirst(); iterator.hasNext(); iterator.next()) {
-            if(iterator.peekNext().getKey() == bytes("key")) {
-                continue;
-            }else {
-                row = sheet.createRow(k);
-                byte[] key = iterator.peekNext().getKey();
-                byte[][] node = RLP.rlpDecoding(iterator.peekNext().getValue());
-                if(Node.isLeafNode(Objects.requireNonNull(node))) {
-                    cell = row.createCell(0);
-                    cell.setCellValue("Leaf");
-                    cell.setCellStyle(style);
-                    cell = row.createCell(2);
-                    cell.setCellValue("Key-End");
-                    cell.setCellStyle(style);
-                    cell = row.createCell(4);
-                    cell.setCellValue("Value");
-                    cell.setCellStyle(style);
+            try {
+                if(new String(iterator.peekNext().getKey(),"UTF-8").equals(head)) {
+                    continue;
+                }else {
+                    row = sheet.createRow(k);
+                    byte[] key = iterator.peekNext().getKey();
+                    byte[][] node = RLP.rlpDecoding(iterator.peekNext().getValue());
+                    if(Node.isLeafNode(Objects.requireNonNull(node))) {
+                        cell = row.createCell(0);
+                        cell.setCellValue("Leaf");
+                        cell.setCellStyle(style);
+                        cell = row.createCell(2);
+                        cell.setCellValue("Key-End");
+                        cell.setCellStyle(style);
+                        cell = row.createCell(4);
+                        cell.setCellValue("Value");
+                        cell.setCellStyle(style);
 
-                    cell = row.createCell(1);
-                    cell.setCellValue(HexConver.byte2HexStr(key,key.length));
-                    cell.setCellStyle(regular);
-                    cell = row.createCell(3);
-                    cell.setCellValue(HexConver.byte2HexStr(node[1],node[1].length));
-                    cell.setCellStyle(regular);
-                    cell = row.createCell(5);
-                    cell.setCellValue(HexConver.byte2HexStr(node[2],node[2].length));
-                    cell.setCellStyle(regular);
-                }else if(Node.isBranchNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
-                    cell = row.createCell(0);
-                    cell.setCellValue("Branch");
-                    cell.setCellStyle(style);
-                    cell = row.createCell(1);
-                    cell.setCellValue(HexConver.byte2HexStr(key,key.length));
-                    cell.setCellStyle(regular);
-                    int j = 1;
-                    for(int i = 0; i < 16; i++) {
-                        if(node[i] != null) {
-                            cell = row.createCell(2*j);
-                            cell.setCellValue(mHexStr.charAt(i));
-                            cell.setCellStyle(style);
+                        cell = row.createCell(1);
+                        cell.setCellValue(HexConver.byte2HexStr(key,key.length));
+                        cell.setCellStyle(regular);
+                        cell = row.createCell(3);
+                        cell.setCellValue(HexConver.byte2HexStr(node[1],node[1].length));
+                        cell.setCellStyle(regular);
+                        cell = row.createCell(5);
+                        cell.setCellValue(HexConver.byte2HexStr(node[2],node[2].length));
+                        cell.setCellStyle(regular);
+                    }else if(Node.isBranchNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
+                        cell = row.createCell(0);
+                        cell.setCellValue("Branch");
+                        cell.setCellStyle(style);
+                        cell = row.createCell(1);
+                        cell.setCellValue(HexConver.byte2HexStr(key,key.length));
+                        cell.setCellStyle(regular);
+                        int j = 1;
+                        for(int i = 0; i < 16; i++) {
+                            if(node[i] != null) {
+                                cell = row.createCell(2*j);
+                                cell.setCellValue(mHexStr.charAt(i));
+                                cell.setCellStyle(style);
 
-                            cell = row.createCell(2*j+1);
-                            cell.setCellValue(HexConver.byte2HexStr(node[i],node[i].length));
-                            cell.setCellStyle(regular);
+                                cell = row.createCell(2*j+1);
+                                cell.setCellValue(HexConver.byte2HexStr(node[i],node[i].length));
+                                cell.setCellStyle(regular);
 
-                            j++;
+                                j++;
+                            }
                         }
+                        cell = row.createCell(2*j);
+                        cell.setCellValue("Value");
+                        cell.setCellStyle(style);
+
+                        cell = row.createCell(2*j+1);
+                        cell.setCellValue(HexConver.byte2HexStr(node[16],node[16].length));
+                        cell.setCellStyle(regular);
+                    }else if(Node.isExtensionNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
+                        cell = row.createCell(0);
+                        cell.setCellValue("Extension");
+                        cell.setCellStyle(style);
+                        cell = row.createCell(2);
+                        cell.setCellValue("Shared-Nibbles");
+                        cell.setCellStyle(style);
+                        cell = row.createCell(4);
+                        cell.setCellValue("Child");
+                        cell.setCellStyle(style);
+
+                        cell = row.createCell(1);
+                        cell.setCellValue(HexConver.byte2HexStr(key,key.length));
+                        cell.setCellStyle(regular);
+                        cell = row.createCell(3);
+                        cell.setCellValue(HexConver.byte2HexStr(node[1],node[1].length));
+                        cell.setCellStyle(regular);
+                        cell = row.createCell(5);
+                        cell.setCellValue(HexConver.byte2HexStr(node[2],node[2].length));
+                        cell.setCellStyle(regular);
                     }
-                    cell = row.createCell(2*j);
-                    cell.setCellValue("Value");
-                    cell.setCellStyle(style);
-
-                    cell = row.createCell(2*j+1);
-                    cell.setCellValue(HexConver.byte2HexStr(node[16],node[16].length));
-                    cell.setCellStyle(regular);
-                }else if(Node.isExtensionNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
-                    cell = row.createCell(0);
-                    cell.setCellValue("Extension");
-                    cell.setCellStyle(style);
-                    cell = row.createCell(2);
-                    cell.setCellValue("Shared-Nibbles");
-                    cell.setCellStyle(style);
-                    cell = row.createCell(4);
-                    cell.setCellValue("Child");
-                    cell.setCellStyle(style);
-
-                    cell = row.createCell(1);
-                    cell.setCellValue(HexConver.byte2HexStr(key,key.length));
-                    cell.setCellStyle(regular);
-                    cell = row.createCell(3);
-                    cell.setCellValue(HexConver.byte2HexStr(node[1],node[1].length));
-                    cell.setCellStyle(regular);
-                    cell = row.createCell(5);
-                    cell.setCellValue(HexConver.byte2HexStr(node[2],node[2].length));
-                    cell.setCellStyle(regular);
                 }
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
             }
             k++;
         }
@@ -459,74 +469,32 @@ public class Data {
     }
 
     public static void main(String[] args) {
-        try {
+
+        byte[] value = DigestUtils.sha1("123".getBytes());
+        Trie.createForLeaf(null,"1234",value);
+        System.out.println("finish");
+        output();
+       /* try {
             initialize();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-            //1.创建工作簿
-            HSSFWorkbook workBook = new HSSFWorkbook();
-
-            //创建合并单元格对象
-            CellRangeAddress rangeAddress = new CellRangeAddress(2, 2, 2, 4);
-            //创建样式
-            HSSFCellStyle style = workBook.createCellStyle();
-            //创建字体
-            HSSFFont font = workBook.createFont();
-            font.setFontHeightInPoints((short) 16);
-            //font.setFontHeight((short)320); 效果和上面一样。用这个方法设置大小，值要设置为字体大小*20倍，具体看API文档
-            font.setColor(HSSFColor.GREEN.index);
-            style.setFont(font);
-            //设置背景
-            style.setFillForegroundColor(HSSFColor.RED.index);
-
-            //2.创建工作表
-            HSSFSheet sheet = workBook.createSheet("helloWorld");
-            //添加合并区域
-            sheet.addMergedRegion(rangeAddress);
-
-            //3.创建行
-            HSSFRow row = sheet.createRow(2);
-            //4.创建单元格
-            HSSFCell cell = row.createCell(2);
-            cell.setCellValue("helloWorld");
-            cell.setCellStyle(style);
-
-            //输出
-        FileOutputStream outputStream = null;
+        int [] t = survey();
+        */
+        //System.out.println(String.valueOf(t[0])+String.valueOf(t[1])+String.valueOf(t[2])+String.valueOf(t[3]));
+       /* byte[] value = DigestUtils.sha1("123".getBytes());
+        Trie.createForLeaf(null,"1234",value);
+        System.out.println("finish");
+        int [] t = survey();
         try {
-            outputStream = new FileOutputStream(new File(Constants.WORK_BOOK));
-            workBook.write(outputStream);
-
-            outputStream.close();
+            close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        output();
+        System.out.println(String.valueOf(t[0])+String.valueOf(t[1])+String.valueOf(t[2])+String.valueOf(t[3]));
+        */
 
-
-        try {
-            /*
-            try (WriteBatch batch = Data.createWriteBatch()) {
-                batch.delete(bytes("Denver"));
-                batch.put(bytes("Tampa"), bytes("green"));
-                batch.put(bytes("London"), bytes("red"));
-
-                Data.write(batch);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            */
-            // Make sure you close the batch to avoid resource leaks.
-        } finally {
-            // Make sure you close the db to shutdown the
-            // database and avoid resource leaks.
-            try {
-                close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
 }

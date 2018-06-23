@@ -102,7 +102,7 @@ public class Trie {
     }
 
     public static void createForLeaf(byte[] headHash, String key, byte[] value) {
-        byte[][] store = new byte[3][40];
+        byte[][] store = new byte[3][];
         int key_Length = 0;
         key = key.toUpperCase();
         // Initialize Data Base
@@ -115,8 +115,13 @@ public class Trie {
         if (headHash == null) {
             Node.setPrefix(store,Node.LEAF_PREFIX);
             Node.setNibbles(store,key);
+       //     System.out.println(HexConver.byte2HexStr(key.getBytes(),key.getBytes().length));
+        //    System.out.println(HexConver.byte2HexStr(value,value.length));
             store[2] = value;
             Node.storeNode(store);
+          //  Data.put("ROOT".getBytes(),Hash.getHash(RLP.rlpEncoding(store)));
+ //           byte[][] temp = RLP.rlpDecoding(RLP.rlpEncoding(store));
+       //     System.out.println(HexConver.byte2HexStr(RLP.rlpEncoding(store),RLP.rlpEncoding(store).length));
         } else {
             byte[][] node = RLP.rlpDecoding(Data.get(headHash));
             StringBuilder nibbles = new StringBuilder();
@@ -267,12 +272,14 @@ public class Trie {
             } else
                 System.out.println("we already have this data");
         }
+        try {
+            Data.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public static void main(String[] args){
-        byte[] value = DigestUtils.sha("123".getBytes());
-        createForLeaf(null,"1234",value);
-    }
+
 }
 
 

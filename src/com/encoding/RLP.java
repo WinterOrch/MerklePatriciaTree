@@ -48,7 +48,7 @@ public class RLP {
 
         if(((input[0] & 0xFF) >= 0xc0) && ((input[0] & 0xFF) <= 0xf7)) {
             prefixLength = 1;
-            length = (int)input[0] - 0xc0;
+            length = input[0] & 0xFF - 0xc0;
         }else if((input[0] & 0xFF) >= 0xf8) {
             prefixLength = (input[0] & 0xFF) - 0xf7 + 1;
             length = 0;
