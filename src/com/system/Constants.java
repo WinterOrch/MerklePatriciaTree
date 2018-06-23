@@ -13,4 +13,7 @@ public class Constants {
      */
     public final static String CONFIG_DATABASE = CURRENT_DIR + File.separator + "config" + File.separator
             + "LevelDB";
+
+    public final static String WORK_BOOK = CURRENT_DIR + File.separator + "xls" + File.separator
+            + "test.xls";
 }

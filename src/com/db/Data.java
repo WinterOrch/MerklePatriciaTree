@@ -1,20 +1,26 @@
 package com.db;
 
+import com.encoding.HexConver;
 import com.encoding.RLP;
 import com.system.Constants;
 import com.system.node.Node;
+import org.apache.poi.hssf.usermodel.*;
+import org.apache.poi.hssf.util.HSSFColor;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.iq80.leveldb.*;
 import static org.fusesource.leveldbjni.JniDBFactory.*;
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class Data {
+    private final static String head = "ROOT";
+    private final static String mHexStr = "0123456789ABCDEF";
+
     private static DB dataBase;
     private static byte[] headHash;
     private static String compareResult;
 
-    private final static String head = "ROOT";
-    private final static String mHexStr = "0123456789ABCDEF";
     /**
      * Usage:
      Data.initialize();
@@ -307,6 +313,150 @@ public class Data {
         return "Update Successful";
     }
 
+    /**
+     * Usage:
+     *      Data.output();
+     * created in 14:26 2018/6/23
+     */
+    public static void output() {
+        try {
+            initialize();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Create Work Book
+        HSSFWorkbook workBook = new HSSFWorkbook();
+
+        // Create Style
+        HSSFCellStyle style = workBook.createCellStyle();
+        HSSFFont font = workBook.createFont();
+        font.setFontHeightInPoints((short) 16);
+        font.setColor(HSSFColor.GREEN.index);
+        style.setFont(font);
+
+        HSSFCellStyle regular = workBook.createCellStyle();
+        font.setFontHeightInPoints((short) 9);
+        font.setColor(HSSFColor.BLACK.index);
+        regular.setFont(font);
+
+        // Create Work Sheet
+        SimpleDateFormat time=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String TimeString = time.format(new java.util.Date());
+        HSSFSheet sheet = workBook.createSheet(TimeString);
+
+        // Write Root
+        HSSFRow row = sheet.createRow(0);
+        HSSFCell cell = row.createCell(0);
+        cell.setCellValue(head);
+        cell.setCellStyle(style);
+
+        cell = row.createCell(1);
+        byte[] root = get(bytes(head));
+        if(root != null) {
+            cell.setCellValue(HexConver.byte2HexStr(root,root.length));
+        }else {
+            cell.setCellValue("NULL");
+        }
+        cell.setCellStyle(style);
+
+        int k = 1;
+        DBIterator iterator = iterator();
+        for(iterator.seekToFirst(); iterator.hasNext(); iterator.next()) {
+            if(iterator.peekNext().getKey() == bytes("key")) {
+                continue;
+            }else {
+                row = sheet.createRow(k);
+                byte[] key = iterator.peekNext().getKey();
+                byte[][] node = RLP.rlpDecoding(iterator.peekNext().getValue());
+                if(Node.isLeafNode(Objects.requireNonNull(node))) {
+                    cell = row.createCell(0);
+                    cell.setCellValue("Leaf");
+                    cell.setCellStyle(style);
+                    cell = row.createCell(2);
+                    cell.setCellValue("Key-End");
+                    cell.setCellStyle(style);
+                    cell = row.createCell(4);
+                    cell.setCellValue("Value");
+                    cell.setCellStyle(style);
+
+                    cell = row.createCell(1);
+                    cell.setCellValue(HexConver.byte2HexStr(key,key.length));
+                    cell.setCellStyle(regular);
+                    cell = row.createCell(3);
+                    cell.setCellValue(HexConver.byte2HexStr(node[1],node[1].length));
+                    cell.setCellStyle(regular);
+                    cell = row.createCell(5);
+                    cell.setCellValue(HexConver.byte2HexStr(node[2],node[2].length));
+                    cell.setCellStyle(regular);
+                }else if(Node.isBranchNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
+                    cell = row.createCell(0);
+                    cell.setCellValue("Branch");
+                    cell.setCellStyle(style);
+                    cell = row.createCell(1);
+                    cell.setCellValue(HexConver.byte2HexStr(key,key.length));
+                    cell.setCellStyle(regular);
+                    int j = 1;
+                    for(int i = 0; i < 16; i++) {
+                        if(node[i] != null) {
+                            cell = row.createCell(2*j);
+                            cell.setCellValue(mHexStr.charAt(i));
+                            cell.setCellStyle(style);
+
+                            cell = row.createCell(2*j+1);
+                            cell.setCellValue(HexConver.byte2HexStr(node[i],node[i].length));
+                            cell.setCellStyle(regular);
+
+                            j++;
+                        }
+                    }
+                    cell = row.createCell(2*j);
+                    cell.setCellValue("Value");
+                    cell.setCellStyle(style);
+
+                    cell = row.createCell(2*j+1);
+                    cell.setCellValue(HexConver.byte2HexStr(node[16],node[16].length));
+                    cell.setCellStyle(regular);
+                }else if(Node.isExtensionNode(Objects.requireNonNull(RLP.rlpDecoding(iterator.peekNext().getValue())))) {
+                    cell = row.createCell(0);
+                    cell.setCellValue("Extension");
+                    cell.setCellStyle(style);
+                    cell = row.createCell(2);
+                    cell.setCellValue("Shared-Nibbles");
+                    cell.setCellStyle(style);
+                    cell = row.createCell(4);
+                    cell.setCellValue("Child");
+                    cell.setCellStyle(style);
+
+                    cell = row.createCell(1);
+                    cell.setCellValue(HexConver.byte2HexStr(key,key.length));
+                    cell.setCellStyle(regular);
+                    cell = row.createCell(3);
+                    cell.setCellValue(HexConver.byte2HexStr(node[1],node[1].length));
+                    cell.setCellStyle(regular);
+                    cell = row.createCell(5);
+                    cell.setCellValue(HexConver.byte2HexStr(node[2],node[2].length));
+                    cell.setCellStyle(regular);
+                }
+            }
+            k++;
+        }
+
+        try {
+            // Output
+            FileOutputStream outputStream = new FileOutputStream(new File(Constants.WORK_BOOK));
+            workBook.write(outputStream);
+            outputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
         try {
@@ -315,7 +465,48 @@ public class Data {
             e.printStackTrace();
         }
 
+            //1.创建工作簿
+            HSSFWorkbook workBook = new HSSFWorkbook();
+
+            //创建合并单元格对象
+            CellRangeAddress rangeAddress = new CellRangeAddress(2, 2, 2, 4);
+            //创建样式
+            HSSFCellStyle style = workBook.createCellStyle();
+            //创建字体
+            HSSFFont font = workBook.createFont();
+            font.setFontHeightInPoints((short) 16);
+            //font.setFontHeight((short)320); 效果和上面一样。用这个方法设置大小，值要设置为字体大小*20倍，具体看API文档
+            font.setColor(HSSFColor.GREEN.index);
+            style.setFont(font);
+            //设置背景
+            style.setFillForegroundColor(HSSFColor.RED.index);
+
+            //2.创建工作表
+            HSSFSheet sheet = workBook.createSheet("helloWorld");
+            //添加合并区域
+            sheet.addMergedRegion(rangeAddress);
+
+            //3.创建行
+            HSSFRow row = sheet.createRow(2);
+            //4.创建单元格
+            HSSFCell cell = row.createCell(2);
+            cell.setCellValue("helloWorld");
+            cell.setCellStyle(style);
+
+            //输出
+        FileOutputStream outputStream = null;
         try {
+            outputStream = new FileOutputStream(new File(Constants.WORK_BOOK));
+            workBook.write(outputStream);
+
+            outputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        try {
+            /*
             try (WriteBatch batch = Data.createWriteBatch()) {
                 batch.delete(bytes("Denver"));
                 batch.put(bytes("Tampa"), bytes("green"));
@@ -325,6 +516,7 @@ public class Data {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            */
             // Make sure you close the batch to avoid resource leaks.
         } finally {
             // Make sure you close the db to shutdown the
