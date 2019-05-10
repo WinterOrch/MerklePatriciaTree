@@ -148,7 +148,8 @@ public class HexConver {
         return sb.toString();
     }
 
-    /**将16进制转换为二进制
+    /**
+     * 将16进制转换为二进制
      */
     public static byte[] parseHexStr2Byte(String hexStr) {
         if (hexStr.length() < 1)

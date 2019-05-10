@@ -1,9 +1,12 @@
 package com.system.node;
 
 import com.db.Data;
+import com.encoding.BytesUtils;
 import com.encoding.Hash;
-import com.encoding.RLP;
+import com.encoding.HexConver;
+import com.encoding.RLPUtils;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -12,14 +15,17 @@ import java.util.Objects;
  * Created in 21:11 2018/6/17
  */
 public class Node {
-
-    public static int EXTENSION_PREFIX = 0x00;
-    public static int LEAF_PREFIX = 0x02;
+    public static final int EXTENSION_PREFIX = 0x00;
+    public static final int LEAF_PREFIX = 0x02;
 
     public static final int LEAF_TYPE = 0;
     public static final int EXTENSION_TYPE = 1;
     public static final int BRANCH_TYPE = 2;
     public static final int UNKNOWN_TYPE = 3;
+
+    public static final int LEAF_LEN = 3;
+    public static final int EXTENSION_LEN = 3;
+    public static final int BRANCH_LEN = 17;
 
     /**
      * Usage:
@@ -32,7 +38,7 @@ public class Node {
     public static byte[][] getExtensionChild(byte[][] extensionNode) {
         if((extensionNode[0][0] & 0xFF) == EXTENSION_PREFIX) {
             byte[] childRLP = Data.get(extensionNode[2]);
-            return RLP.rlpDecoding(childRLP);
+            return RLPUtils.rlpDecoding(childRLP);
         }else {
             return null;
         }
@@ -47,9 +53,9 @@ public class Node {
      * created in 21:11 2018/6/17
      */
     public static byte[][] getBranchChild(byte[][] branchNode, int index) {
-        if(branchNode.length == 17) {
+        if(branchNode.length == Node.BRANCH_LEN) {
             byte[] childRLP = Data.get(branchNode[index]);
-            return RLP.rlpDecoding(childRLP);
+            return RLPUtils.rlpDecoding(childRLP);
         }else {
             return null;
         }
@@ -59,14 +65,14 @@ public class Node {
      * Usage:
      *      String keyEnd = Node.getNibbles(leafNode);
      * Warning:
-     *      1.return null when the input node is neither an extension node nor a leaf node
+     *      1.return "" when the input node is neither an extension node nor a leaf node
      * created in 21:11 2018/6/17
      */
     public static String getNibbles(byte[][] eNOrLN) {
-        if(eNOrLN.length == 3) {
-            return new String(eNOrLN[1]);
+        if(eNOrLN.length == 3 && null != eNOrLN[1]) {
+            return HexConver.byte2HexStr(eNOrLN[1],eNOrLN[1].length);
         }else {
-            return null;
+            return "";
         }
     }
 
@@ -97,7 +103,7 @@ public class Node {
      * created in 21:11 2018/6/17
      */
     public static boolean isExtensionNode(byte[][] node) {
-        return (node.length == 3) && ((node[0][0] & 0xFF) == EXTENSION_PREFIX);
+        return null != node && ((node.length == 3) && ((node[0][0] & 0xFF) == EXTENSION_PREFIX));
     }
 
     /**
@@ -108,7 +114,7 @@ public class Node {
      * created in 21:11 2018/6/17
      */
     public static boolean isLeafNode(byte[][] node) {
-        return (node.length == 3) && ((node[0][0] & 0xFF) == LEAF_PREFIX);
+        return null != node && (node.length == 3) && ((node[0][0] & 0xFF) == LEAF_PREFIX);
     }
 
     /**
@@ -119,7 +125,7 @@ public class Node {
      * created in 21:11 2018/6/17
      */
     public static boolean isBranchNode(byte[][] node) {
-        return node.length == 17;
+        return null != node && node.length == 17;
     }
 
     /**
@@ -128,7 +134,7 @@ public class Node {
      * created in 21:11 2018/6/17
      */
     public static void setChild(byte[][] parent, byte[][] child) {
-        parent[2] = Hash.getHash(RLP.rlpEncoding(child));
+        parent[2] = Hash.getHash(RLPUtils.rlpEncoding(child));
     }
 
     /**
@@ -137,7 +143,7 @@ public class Node {
      * created in 21:11 2018/6/17
      */
     public static void setChild(byte[][] parent, int index, byte[][] child) {
-        parent[index] = Hash.getHash(RLP.rlpEncoding(child));
+        parent[index] = Hash.getHash(RLPUtils.rlpEncoding(child));
     }
 
     /**
@@ -149,7 +155,10 @@ public class Node {
      */
     public static int setNibbles(byte[][] eNOrLN, String nibbles) {
         if(eNOrLN.length == 3) {
-            eNOrLN[1] = nibbles.getBytes();
+            if(nibbles.isEmpty())
+                eNOrLN[1] = null;
+            else
+                eNOrLN[1] = HexConver.hexStr2Bytes(nibbles);
             return 1;
         }else {
             return 0;
@@ -174,6 +183,16 @@ public class Node {
         }
     }
 
+    public static int setBranchValue(byte[][] branchNode, byte[] value) {
+        if(Node.isBranchNode(branchNode)) {
+            branchNode[Node.BRANCH_LEN - 1] = BytesUtils.copy(value);
+            return 1;
+        }else {
+            return 0;
+        }
+
+    }
+
     /**
      * Usage:
      *      Node.setValue(branchNode);
@@ -196,43 +215,67 @@ public class Node {
     }
 
     /**
+     * @return  New Hash
      * Usage:
      *      Node.storeNode(leafNode);
      * Warning:
      *      1.have to initialize the data base first(and close after that)
      * created in 21:11 2018/6/17
      */
-    public static void storeNode(byte[][] node) {
-        byte[] rlpNode = RLP.rlpEncoding(node);
-        Data.put(Hash.getHash(rlpNode),rlpNode);
+    public static byte[] storeNode(byte[][] node) {
+        byte[] rlpNode = RLPUtils.rlpEncoding(node);
+        byte[] newHash = Hash.getHash(rlpNode);
+        Data.put(newHash,rlpNode);
+        return newHash;
     }
 
     /**
+     * Keep The Original Hash Unchanged. Used When Creating A Update List.
+     * @return  Old Hash
+     * Warning:
+     *      1.have to initialize the data base first(and close after that)
+     * created in 21:11 2018/6/17
+     */
+    public static byte[] overwriteNode(byte[] originHash, byte[][] node) {
+        if(Data.get(originHash) == null) {
+            throw new RuntimeException("Cannot Find originHash");
+        }else {
+            Data.put(originHash, RLPUtils.rlpEncoding(node));
+            return originHash;
+        }
+    }
+
+    /**
+     * @return  New Hash
      * Usage:
      *      Node.storeNode(originHash,leafNode);
      * Warning:
      *      1.have to initialize the data base first(and close after that)
      * created in 21:11 2018/6/17
      */
-    public static void storeNode(byte[] originHash, byte[][] node) {
+    public static byte[] storeNode(byte[] originHash, byte[][] node) {
         if(Data.get(originHash) == null) {
             throw new RuntimeException("Cannot Find originHash");
         }else {
-            byte[] rlpNode = RLP.rlpEncoding(node);
             Data.delete(originHash);
-            Data.put(originHash,rlpNode);
+            return storeNode(node);
         }
     }
 
     /**
      * Usage:
-     *      Node.updateNode(nodeHash,childHashOrigin, childHash);
+     *      Node.updateNode(nodeHash, childHashOrigin, childHash);
+     *
+     *      @return New Hash of This Node
+     * Tip:
+     *      Could be Used to Refresh A Node Especially When It Has A Mismatched Hash by Setting childHashOrigin
+     *      and childHash Both null
      * Warning:
      *      1.have to initialize the data base first(and close after that)
      * created in 21:11 2018/6/17
      */
     public static byte[] updateNode(byte[] hash, byte[] childHashOrigin, byte[] childHash) {
-        byte[][] node = Objects.requireNonNull(RLP.rlpDecoding(Data.get(hash)));
+        byte[][] node = Objects.requireNonNull(RLPUtils.rlpDecoding(Data.get(hash)));
         byte[] rlpNode;
         byte[] h;
 
@@ -251,15 +294,22 @@ public class Node {
                 throw new RuntimeException("Branch Node Cannot Find childHashOrigin");
             }else {
                 node[i] = childHash;
-                Node.setValue(node);
             }
         }
 
-        rlpNode = RLP.rlpEncoding(node);
-        Data.delete(hash);
+        rlpNode = RLPUtils.rlpEncoding(node);
         h = Hash.getHash(rlpNode);
+
+        // No Need to Refresh
+        if(childHash == null && childHashOrigin == null) {
+            if(Arrays.equals(h,hash))
+                return hash;
+        }
+
+        Data.delete(hash);
         Data.put(h, rlpNode);
         return h;
     }
+
 
 }

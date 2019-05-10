@@ -1,8 +1,12 @@
 package com.encoding;
 
+import org.apache.commons.codec.digest.DigestUtils;
+
 import java.util.Objects;
 
-public class RLP {
+import static org.fusesource.leveldbjni.JniDBFactory.bytes;
+
+public class RLPUtils {
     /**
      * RLP Encoding Process For Outside Use
      * @param input Two-dimension Byte Array As A Complete Node;
@@ -193,10 +197,10 @@ public class RLP {
             output = new byte[1 + temp.length];
             output[0] = (byte)(temp.length + offset + 55);
             System.arraycopy(temp,0,output,1,temp.length);
-            
+
             return output;
         }else {
-            
+
             return null;
         }
     }
@@ -243,7 +247,12 @@ public class RLP {
         System.out.println(HexConver.byte2HexStr(l[1],l[1].length));
         System.out.println(HexConver.byte2HexStr(l[2],l[2].length));
 
-        System.out.println(HexConver.byte2HexStr("ROOT".getBytes(),"ROOT".getBytes().length));
-    }
+        System.out.println(DigestUtils.sha1(bytes("gun")).length);
+        System.out.println(DigestUtils.md5(bytes("gun")).length);
 
+        byte[][] newBranchNode = new byte[16][];
+
+        if(null == newBranchNode[0])
+            System.out.println("Shit");
+    }
 }
