@@ -359,30 +359,72 @@ public class Trie {
                             }
                             //  Situation 2.3: Leaf Node in Reserved Position
                             else if(Node.isLeafNode(posReserved)) {
+                                boolean newExtensionAdded = false;
+
                                 //  Create Branch Node
                                 byte[][] newBranchNode = new byte[Node.BRANCH_LEN][];
+
                                 //  Case 1: Original Leaf with Empty Nibble, Replace it With Branch Node
                                 String oldLeafNibble = Node.getNibbles(posReserved);
+                                int sharedLen = StringUtils.findSharedLenth(oldLeafNibble,key.substring(matchedLen));
                                 if(oldLeafNibble.isEmpty()) {
                                     Node.setBranchValue(newBranchNode,BytesUtils.copy(posReserved[2]));
                                 }
                                 //  Case 2: Original Leaf Not Empty, Create A New One And Hang
                                 else {
-                                    byte[][] newShortLeafNode = new byte[Node.LEAF_LEN][];
-                                    Node.setPrefix(newShortLeafNode,Node.LEAF_PREFIX);
-                                    Node.setNibbles(newShortLeafNode,oldLeafNibble.substring(1));
-                                    //  Hang
-                                    Node.setChild(newBranchNode,mHexStr.indexOf(oldLeafNibble.charAt(0)),newShortLeafNode);
-                                    //  Update Old Branch
-                                    Node.storeNode(newShortLeafNode);
+                                    //  Case 2.0: Leaf Nibble Unmatched, Hang on Branch Node
+                                    if( 0 == sharedLen ) {
+                                        byte[][] newShortLeafNode = new byte[Node.LEAF_LEN][];
+                                        Node.setPrefix(newShortLeafNode,Node.LEAF_PREFIX);
+                                        Node.setNibbles(newShortLeafNode,oldLeafNibble.substring(1));
+                                        //  Hang
+                                        Node.setChild(newBranchNode,mHexStr.indexOf(oldLeafNibble.charAt(0)),newShortLeafNode);
+                                        //  Update Old Branch
+                                        Node.storeNode(newShortLeafNode);
+                                    }
+                                    //  Case 2.1: Leaf Nibble Matched, Create Extension Node
+                                    else {
+                                        newExtensionAdded = true;
+
+                                        //  Create New Extension Node
+                                        byte[][] newExtensionNode = new byte[Node.EXTENSION_LEN][];
+                                        Node.setPrefix(newExtensionNode,Node.LEAF_PREFIX);
+                                        Node.setNibbles(newExtensionNode,oldLeafNibble.substring(0,sharedLen - 1));
+                                        //  Case 2.1.0
+                                        if( sharedLen == oldLeafNibble.length() ) {
+                                            Node.setBranchValue(newBranchNode,BytesUtils.copy(posReserved[2]));
+                                        }
+                                        //  Case 2.1.1
+                                        else {
+                                            byte[][] newShortLeafNode = new byte[Node.LEAF_LEN][];
+                                            Node.setPrefix(newShortLeafNode,Node.LEAF_PREFIX);
+                                            Node.setNibbles(newShortLeafNode,oldLeafNibble.substring(sharedLen + 1));
+                                            //  Hang
+                                            Node.setChild(newBranchNode,mHexStr.indexOf(oldLeafNibble.charAt(sharedLen)),newShortLeafNode);
+                                            //  Update Old Branch
+                                            Node.storeNode(newShortLeafNode);
+                                        }
+
+                                        //  Replace Original Leaf Node with New Extension Node
+                                        Node.setPrefix(posReserved,Node.EXTENSION_PREFIX);
+                                        posReserved[1] = BytesUtils.copy(newExtensionNode[1]);
+                                    }
                                 }
                                 //  Situation 2.3.0: Key Out
-                                if(key.length() == matchedLen + 1) {
+                                if(key.length() == matchedLen + sharedLen + 1) {
                                     Node.setBranchValue(newBranchNode,value);
+
                                     //  Update List
                                     path.add(nodeHash);
-                                    path.add(Node.overwriteNode(posReservedHash,newBranchNode));
-
+                                    if(newExtensionAdded) {
+                                        //  Hang Branch on Extension
+                                        posReserved[2] = Node.storeNode(newBranchNode);
+                                        //  List
+                                        path.add(Node.overwriteNode(posReservedHash,posReserved));
+                                        path.add(BytesUtils.copy(posReserved[2]));
+                                    }else {
+                                        path.add(Node.overwriteNode(posReservedHash,newBranchNode));
+                                    }
                                     break;
                                 }
                                 //  Situation 2.3.1: Key Not Out, Create New Leaf
@@ -393,11 +435,19 @@ public class Trie {
                                     Node.setNibbles(newLeafNode,key.substring(matchedLen + 1));
                                     //  Hang
                                     Node.setChild(newBranchNode,mHexStr.indexOf(key.charAt(matchedLen)),newLeafNode);
-                                    // Update List
+                                    //  Update List
                                     path.add(nodeHash);
-                                    path.add(Node.overwriteNode(posReservedHash,newBranchNode));
-                                    path.add(Node.storeNode(newLeafNode));
-
+                                    if(newExtensionAdded) {
+                                        //  Hang Branch on Extension
+                                        posReserved[2] = Node.storeNode(newBranchNode);
+                                        //  List
+                                        path.add(Node.overwriteNode(posReservedHash,posReserved));
+                                        path.add(BytesUtils.copy(posReserved[2]));
+                                        path.add(Node.storeNode(newLeafNode));
+                                    }else {
+                                        path.add(Node.overwriteNode(posReservedHash,newBranchNode));
+                                        path.add(Node.storeNode(newLeafNode));
+                                    }
                                     break;
                                 }
                             }
